@@ -1,0 +1,1016 @@
+#!/usr/bin/perl -w
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+# 02111-1307, USA.
+#
+# $Id: elf2kme,v 1.7 2004/12/15 12:47:54 linutic Exp $
+
+##### IMPORTANT: use command "perldoc elf2kme" to read the documentation.
+
+=head1 NAME
+
+elf2kme - Generate symbol definitions from an ELF binary.
+
+=head1 SYNOPSIS
+
+elf2kme [-dhtvV] [-a array_max] [-c numcol] [-f name_min] [-n name_max]
+                 [-s symfile] [-w colwidth] elfbinary ...
+
+=head1 OPTIONS
+
+-a array_max   In array displays, limit the number of items
+               displayed so that the total number of bytes
+               is less-equal array_max.  (default 100)
+
+-c numcol      Assume that the terminal is large enough to allow
+               for at least "numcol" display items. (default 7)
+
+-d             Print debugging info.  May be specified multiple
+               times to get even more.
+
+-f name_min    Display all member names in at least the specified
+               number of columns. (default 1)
+
+-h             Display variables in horizontal "name=data" format
+               rather than veritical name/data format.
+
+-m             When a structure is a member of another structure,
+               express the structure as "member.member".
+
+-n name_max   Truncate member names if necessary to make them
+               fit in the specified number of columns. (default 2)
+
+-s symfile     Generate KME defintions only for structures and
+               unions referenced in "symfile".  symfile may contain
+               either simple names or perl patterns.
+
+-t             Generate typedef as well as structure definitions.
+               Structure names take preference if both are defined.
+
+-v             Display data verbosely.  For example chars are
+               shown in both HEX and ASCII and integers are
+               displayed in both HEX and decimal.
+
+-w colwidth    Assume KME columns are "colwidth" characters
+               wide. (default 9)
+
+=head1 DESCRIPTION
+
+Generates a kme_defs file (see kme(1)) from the DWARF debugging
+symbols present in an ELF format binary file.  For example:
+
+    % gcc -g -o prog prog1.c prog2.c prog3.c
+    % elf2kme prog >kme_defs
+    % kme
+
+The generated output is formatted for clarity, not for beauty,
+and serious kme users will probably still want to optimize or
+even hand-craft some kme_defs data structure definitions.
+
+=head1 BUGS
+
+The program doesn't notice if there are two different structure
+declarations with the same name.
+
+The program requires readelf(1) present in many Linux distributions,
+and is very sensitive to the output of that program.
+
+=head1 SEE ALSO
+
+kme(1), readelf(1), gcc(1)
+
+=cut
+
+use strict;
+
+#### Command line options.
+
+my $verbose = 0;			# Display verbose format
+my $debug = 0;				# Debug Level
+my $col_max = 7;			# Number of KME columns
+my $truncate = 0;			# Truncate member names to 1 col
+my $array_max = 100;			# Maximum array byte size
+my $symfile;				# Structure list file
+my $col_width = 9;			# KME column width
+my $name_col_min = 1;			# Min name columns
+my $name_col_max = 2;			# Max name columns
+my $member_names = 0;			# Extended member names
+my $horizontal = 0;			# Horizontal display format
+my $do_typedefs = 0;			# Also generate typedefs
+
+#### Global symbol table.
+
+my %symbol;				# All symbols hashed by
+					# readelf(1) "key".
+
+my %generate;				# Hash of symbol names to be generated.
+
+#### Working display variables.
+
+my $name_min;				# Min name length
+my $name_max;				# Max name length
+my $title_line = "";			# Current line of variable names
+my $data_line = "";			# Current line of data display ops
+
+my $macro;				# Current macro name
+my $col;				# Current column number
+
+my $addr_kme;				# Current KME display address
+
+
+########################################################################
+# Generates a symbol.
+########################################################################
+
+sub print_sym($)
+{
+    my $key = shift;
+
+    return if !defined $key;
+
+    my $comma = "";
+
+    print "\$symbol[$key] = {";
+
+    for my $v (sort keys %{$symbol{$key}}) {
+
+	print "$comma$v=" . $symbol{$key}{$v};
+
+	$comma = ", ";
+    }
+
+    print "}\n";
+}
+
+
+########################################################################
+# Parses a complete binary file.
+########################################################################
+
+sub read_elf($)
+{
+    my $file = shift;
+
+    my $key;
+    my $sym = {};
+
+    my $struct;
+    my $array;
+
+    open(SYMFILE, "readelf -wi $file |") || die "Cannot open: $file";
+
+    #### Loop to read the complete input elf file.
+
+    while (<SYMFILE>) {
+
+	if (m/^\s*<(\w+)><(\w+)>:.*Number:\s*(\w+)\s*\(DW_TAG_(\w+)\)/i) {
+
+	    print_sym($key) if $debug >= 3;
+
+	    # print "KEY: <$1><$2> $3 $4\n";
+
+	    #### Parse symbol definition.
+
+	    $key = $2;
+	    my $tag = $4;
+
+	    #### Create a new symbol.
+
+	    warn "Duplicate symbol $2" if (defined($symbol{$key}));
+
+	    $symbol{$key} = $sym = { tag => $tag};
+
+	    #### Arrange for each structure to have a list of its
+	    #### members, and each array to have a list of its subranges.
+
+	    if ($tag eq "structure_type" || $tag eq "union_type") {
+
+		$struct = $key;
+
+	    } elsif ($tag eq "array_type") {
+
+		$array = $key;
+
+	    } elsif ($tag eq "member") {
+
+		push @{$symbol{$struct}->{member}}, $key;
+
+	    } elsif ($tag eq "subrange_type") {
+
+		push @{$symbol{$array}->{subrange}}, $key;
+	    }
+
+	} elsif (m/^\s*DW_AT_(\w+)\s*:\s*(.*?)\s*$/) {
+
+	    # print " AT: $1 $2\n";
+
+	    #### Parse symbol contents.
+
+	    my $item = $1;
+	    my $body = $2;
+
+	    if ($item eq "name") {
+
+		#### Structure/union/typedef name.
+
+		if ($body =~ m/([^ :][^:]*?)$/) {
+		    $sym->{name} = $1;
+		} else {
+		    warn "Unparseable $item: $key $body";
+		}
+
+		if (!defined $symfile &&
+		    ($sym->{tag} eq "structure_type" ||
+		     $sym->{tag} eq "union_type" ||
+		     ($sym->{tag} eq "typedef" &&
+		      $do_typedefs &&
+		      !defined $generate{$sym->{name}}))) {
+
+		    $generate{$sym->{name}} = $key;
+		}
+
+	    } elsif ($item eq "type") {
+
+		#### Really a pointer to another symbol.
+
+		if ($body =~ /^<(\w+)>$/) {
+		    $sym->{$item} = $1;
+		} else {
+		    warn "unparseable $item: $key $body";
+		}
+
+	    } elsif ($item eq "encoding") {
+
+		#### Base type encoding: char, int, long, float etc.
+
+		if ($body =~ /\(([a-z_ ]+)\)/) {
+		    $sym->{$item} = $1;
+		} else {
+		    warn "unparseable $item: $key $body";
+		}
+		
+	    } elsif ($item eq "byte_size" || $item eq "upper_bound") {
+
+		#### Either symbol size or array element size.
+
+		if ($body =~ /^(\w+)$/) {
+		    $sym->{$item} = $1;
+		} else {
+		    #warn "Unparseable $item: $key $body";
+		}
+		
+	    } elsif ($item eq "data_member_location") {
+
+		#### Structure offset.
+
+		if ($body =~ /plus_uconst:\s*(\w+)\)/) {
+		    $sym->{offset} = $1;
+		} else {
+		    warn "Unparseable $item: $key $body\n";
+		}
+	    }
+	}
+    }
+
+    print_sym($key) if $debug >= 3;
+
+    close(SYMFILE);
+}
+
+
+########################################################################
+# Marks a struct/union/typedef for generation and output.
+########################################################################
+
+sub mark($);
+
+sub mark($)
+{
+    my $key = shift;
+    my $sym;
+
+    #### Scan down the tree through type indirection, marking
+    #### any typedefs found along the way.
+
+    for (;;) {
+
+	$sym = $symbol{$key};
+
+	last if ($sym->{tag} eq "structure_type" ||
+		 $sym->{tag} eq "union_type");
+
+	my $name = $sym->{name};
+
+	if (defined $name &&
+	    $sym->{tag} eq "typedef" &&
+	    $do_typedefs &&
+	    !defined $generate{$name})
+	{
+	    print "Mark typedef: $name\n" if $debug >= 1;
+
+	    $generate{$name} = $key;
+	}
+
+	$key = $sym->{type};
+
+	return if !defined $key;
+    }
+    
+    #### Check the struct/union name.
+
+    my $name = $sym->{name};
+
+    if (defined $name) {
+
+	#### If the name is already known, and the name of a
+	#### structure or union, return.
+
+	my $k = $generate{$name};
+
+	return if (defined $k &&
+		   ($symbol{$k}->{tag} eq "structure_type" ||
+		    $symbol{$k}->{tag} eq "union_type"));
+
+	print "Mark struct: $name\n" if $debug >= 1;
+
+	#### The name is now known.
+
+	$generate{$name} = $key;
+    }
+
+    #### Mark all the members of the structure.
+
+    for my $m (@{$sym->{member}}) {
+
+	mark($m);
+    }
+}
+
+
+########################################################################
+# Reads a symbol file and marks all struct/union names found in
+# the file for printing.
+########################################################################
+
+sub read_sym($)
+{
+    my $file = shift;
+
+    my %string;
+    my @pattern;
+
+    open(FILE, "<$file") || die "Cannot open: $file";
+
+    #### Loop to read the complete file.
+
+    while (<FILE>) {
+
+	#### If the input line contains anything but characters
+	#### that can appear in a C variable name, it must be
+	#### a pattern.  Otherwise it is a struct/union name.
+
+	s/^\s*(.*?)\s*$/$1/;
+
+	if (!/[^a-zA-Z0-9_\s]/) {
+
+	    $string{$_} = 0 for (split /\s+/);
+
+	} else {
+
+	    eval { push @pattern, qr/$_/ };
+
+	    die "File($file) bad pattern: \"$_\"" if $@;
+	}
+    }
+
+    #### Run through all the symbols, and mark all struct/union
+    #### symbols whose name was listed or whose name matches one
+    #### of the patterns.
+
+    for my $key (keys %symbol) {
+
+	my $sym = $symbol{$key};
+
+	if ($sym->{tag} eq "structure_type" ||
+	    $sym->{tag} eq "union_type" ||
+	    $sym->{tag} eq "typedef" && $do_typedefs) {
+
+	    my $name = $sym->{name};
+	    
+	    next if !defined $name;
+
+	    if (defined $string{$name} && $string{$name} == 0) {
+
+		$string{$name}++;
+
+		mark($key);
+		next;
+	    }
+
+	    for my $pat (@pattern) {
+
+		if ($name =~ /$pat/) {
+
+		    mark($key);
+		    next;
+		}
+	    }
+	}
+    }
+
+    #### Warn about any symbols that could not be found.
+
+    for my $name (keys %string) {
+
+	warn "$file: Symbol $name not found"
+	    if $string{$name} eq 0;
+    }
+
+    close(FILE);
+}
+
+
+########################################################################
+# For debugging, prints the symbol tree.
+########################################################################
+
+sub print_tree($$);
+
+sub print_tree($$)
+{
+    my $key = shift;
+    my $sym = $symbol{$key};
+    my $level = shift;
+    my $f;
+
+    for ($f = 0; $f < $level; $f++) {
+	print "    ";
+    }
+
+    for $f (("name", "tag", "encoding", "offset",
+	     "byte_size", "upper_bound", "symfile")) {
+	
+	print "$f=" . $sym->{$f} . ", " if defined $sym->{$f};
+    }
+
+    print "key=$key";
+    print "\n";
+
+    if ($sym->{tag} ne "pointer_type") {
+	for $f (("type")) {
+	    print_tree($sym->{$f}, $level+1) if (defined $sym->{$f});
+	}
+    }
+
+    for my $c (@{$sym->{member}}) {
+	print_tree($c, $level+1);
+    }
+
+    for my $c (@{$sym->{subrange}}) {
+	print_tree($c, $level+1);
+    }
+}
+
+
+########################################################################
+# Flushes the current line of KME_DEFS output.
+########################################################################
+
+sub flush_line()
+{
+    #### Output the variable name line.
+
+    if ($title_line ne "") {
+	print "\t${title_line}n\n";
+	$title_line = "";
+    }
+
+    #### Output the data definitions.
+
+    if ($data_line ne "") {
+	print "\t$data_line";
+
+	if ($col != 0) {
+	    print "n";
+	    $col = 0;
+	}
+
+	print "\n";
+	$data_line = "";
+    }
+}
+
+
+########################################################################
+# Sets the KME address pointer to $base_address.
+########################################################################
+
+sub set_position($)
+{
+    my $addr = shift;
+    my $diff = $addr - $addr_kme;
+
+    if ($diff != 0) {
+
+	# print "<<$addr_kme|$addr>> ";
+
+	$data_line .= $diff < 0 ? -$diff . "- " : "$diff+ ";
+	
+	$addr_kme = $addr;
+    }
+}
+
+
+########################################################################
+# Table that determines what is dumped for each basic C type.
+#
+# Entry format:
+#
+#   "type name" => ( size,
+#                    short-format-string, short-format-cols,
+#                    long-format-string,  long-format-cols)
+########################################################################
+
+my %display_format =
+
+    ("1 char" =>          ["b", 1, "b-c", 2],
+     "1 signed char" =>   ["b", 1, "b-c", 2],
+     "1 unsigned char" => ["b", 1, "b-c", 2],
+
+     "1 boolean" =>       ["b", 1, "b", 1],
+
+     "1 signed" =>        ["b", 1, "b", 1],
+     "1 unsigned" =>      ["b", 1, "b", 1],
+
+     "2 signed" =>        ["x", 1, "x2-d", 2],
+     "2 unsigned" =>      ["x", 1, "x2-t", 2],
+
+     "4 signed" =>        ["l", 1, "z4-l", 2],
+     "4 unsigned" =>      ["l", 1, "e4-l", 2],
+
+     "8 signed" =>        ["q", 2, "q8-g", 4],
+     "8 unsigned" =>      ["q", 2, "q8-g", 4],
+
+     "2 enumeration_type" => ["x", 1, "x2-t", 2],
+     "4 enumeration_type" => ["l", 1, "l4-g", 2],
+
+     "4 pointer_type" =>  ["l", 1, "l", 1],
+     "8 pointer_type" =>  ["q", 2, "q", 2],
+
+     "4 float" =>         ["w",  2, "w4-l", 3],
+     "8 float" =>         ["h",  2, "h8-q", 4],
+     "12 float" =>        ["lq", 3, "lq",   3]);
+
+
+########################################################################
+# Outputs a scalar or array of scalars.
+########################################################################
+
+sub display_scalar($$$$)
+{
+    my $name   = shift;			# Member name
+    my $key    = shift;			# Symbol key
+    my $addr   = shift;			# Display address
+    my $repeat = shift;			# Repeat count
+
+    my $sym = $symbol{$key};
+
+    #### Inspect / adjust field name width.
+
+    my $nwid = 0;
+    
+    if (defined $name) {
+
+	if (length($name) > $name_max) {
+
+	    my $start = length($name) - $name_max;
+	    $name = substr($name, $start, $name_max);
+
+	} elsif (length($name) < $name_min) {
+
+	    $name = substr($name . "                                    ",
+			   0, $name_min);
+
+	} elsif (length($name) % $col_width == 0) {
+
+	    $name .= " ";
+	}
+
+	$nwid = int((length($name) - 1) / $col_width) + 1;
+    }
+
+    #### Get display format.
+
+    my $tag = $sym->{byte_size} . " " . (($sym->{tag} eq "pointer_type" ||
+					  $sym->{tag} eq "enumeration_type") ?
+					 $sym->{tag} : $sym->{encoding});
+
+    my $fmt = $display_format{$tag};
+
+    die "Unknown type: " . $sym->{tag} . ":$tag"
+	if !defined $fmt;
+
+    #### Get data string, data field width, address increment at end.
+
+    my $dstr = $verbose ? $fmt->[2] : $fmt->[0];
+    my $dwid = $verbose ? $fmt->[3] : $fmt->[1];
+    my $dlen = $repeat * $sym->{byte_size};
+
+    my $wid  = $repeat * $dwid;
+
+    #### Figure field width.
+
+    $wid = ($horizontal ?
+	    $wid + $nwid :
+	    $nwid > $dwid ? $nwid : $dwid);
+
+    set_position($addr);
+
+    flush_line() if $col + $wid > $col_max || $repeat > 1;
+
+    #### Output variable name and data fields.
+
+    if ($horizontal) {
+
+	#### Output data in horizontal "name=" mode.
+
+	$data_line .= "\"$name=\" " if defined $name;
+
+	if ($repeat <= 1) {
+
+	    $data_line .= "$dstr ";
+
+	    $col += $wid;
+
+	} elsif (!defined $name) {
+
+	    $data_line .= "$repeat($dstr) ";
+
+	    $col = $col_max;
+
+	} else {
+
+	    my $r = int(($col_max - $nwid) / $dwid);
+
+	    $r = 1 if $r < 1;
+
+	    my $n = int(($repeat - 1) / $r);
+
+	    if ($n > 0) {
+
+		$data_line .= "$n($r($dstr) n ";
+		$data_line .= "." for (1..$nwid);
+		$data_line .= ") ";
+	    }
+
+	    $repeat -= $n * $r;
+
+	    if ($repeat == 1) {
+		$data_line .= "$dstr ";
+	    } elsif ($repeat > 1) {
+		$data_line .= "$repeat($dstr) ";
+	    }
+
+	    $col = $col_max;
+	}
+
+    } else {
+
+	#### Output data in vertical "name" over data mode.
+
+	$title_line .= "\"$name\"" if defined $name;
+
+	if ($repeat <= 1) {
+
+	    $col += $wid;
+
+	    if (defined $name && $nwid < $wid && $col < $col_max) {
+		$title_line .= "." for ($nwid+1..$wid);
+	    }
+
+	    $data_line .= "$dstr";
+
+	    if ($dwid < $wid && $col < $col_max) {
+		$data_line .= "." for ($dwid+1..$wid);
+	    }
+
+	} else {
+
+	    $data_line .= "$repeat($dstr)";
+
+	    $col = $col_max;
+	}
+
+	$title_line .= " " if defined $name;
+	$data_line  .= " ";
+
+    }
+
+    $addr_kme += $dlen;
+}
+
+
+########################################################################
+# Generates a KME display string for the symbol provided.
+########################################################################
+
+sub display_sym($$$$);
+
+sub display_sym($$$$)
+{
+    my $name = shift;			# Member name
+    my $key = shift;			# Symbol key
+    my $addr = shift;			# Display address
+    my $repeat = shift;			# Repeat count
+
+    # print "display($name,$key,$addr,$repeat)\n";
+
+    my $sym = $symbol{$key};
+    my $self = $sym;
+
+    defined $key or die "$macro: undefined key $key";
+
+    #### Indirect through the type of a structure member.
+
+    if ($sym->{tag} eq "member") {
+	$key = $sym->{type};
+	$sym = $symbol{$key};
+    }
+
+    #### Indirect through zero or more "array" and/or "typedef"
+    #### symbol types.
+
+    for (;;) {
+
+	if ($sym->{tag} eq "array_type") {
+
+	    #### Increase repeat count, according to the size
+	    #### of the array.
+
+	    for my $c (@{$sym->{subrange}}) {
+		my $s = $symbol{$c};
+
+		die "$macro: subrange expected"
+		    if $s->{tag} ne "subrange_type";
+
+		return 0 if !defined $s->{upper_bound};
+
+		$repeat *= $s->{upper_bound} + 1;
+	    }
+
+	} else {
+
+	    last if $sym->{tag} eq "pointer_type";
+	}
+
+	last if !defined $sym->{type};
+
+        warn "expected symbol{$key}" if defined $sym->{byte_size};
+
+	$key = $sym->{type};
+	$sym = $symbol{$key};
+    }
+
+    #### Undefined structures have no byte_size.  Maybe other things
+    #### do too.
+
+    if (!defined $sym->{byte_size}) {
+
+	flush_line();
+
+	$data_line .= "\"Undefined\"";
+
+	$col = $col_max;
+	return 0;
+    }
+    
+    #### Reduce the repeat count of the array or simple type.
+
+    my $tsize = $repeat * $sym->{byte_size};
+
+    if ($tsize > $array_max) {
+	$repeat = int(($array_max - 1) / $sym->{byte_size}) + 1;
+    }
+
+    #### Output a simple or structure type.
+
+    if ($sym->{tag} eq "pointer_type" ||
+	$sym->{tag} eq "enumeration_type" ||
+	$sym->{tag} eq "base_type") {
+
+	#### Process a simple type.
+
+	display_scalar($name, $key, $addr, $repeat);
+
+    } elsif ($sym->{tag} eq "structure_type" ||
+	     $sym->{tag} eq "union_type") {
+
+	#### Process a structure or union.
+
+	if (defined $sym->{name} &&
+	    $sym ne $self &&
+	    (!$member_names || !defined $name)) {
+
+	    #### Insert a macro reference.
+
+	    set_position($addr);
+	    flush_line();
+
+	    if ($repeat > 1) {
+		$data_line .= ($repeat - 1) . "(!" . $sym->{name} . " n) ";
+	    }
+
+	    $data_line .= "!" . $sym->{name} . " ";
+
+	    $addr_kme += $sym->{byte_size} * $repeat;
+
+	} else {
+
+	    #### Explicitly expand an array of structures.
+
+	    for (my $r = 0; $r < $repeat; $r++) {
+
+		$col = $col_max if ($col != 0);
+		
+		for my $c (@{$sym->{member}}) {
+
+		    my $s = $symbol{$c};
+		    my $n = $s->{name};
+		    my $a = $addr;
+
+		    $n = "*" if !defined $n;
+
+		    $n = "$name.$n" if defined $name && $member_names;
+		    
+		    die "$macro: member expected" if $s->{tag} ne "member";
+
+		    $a += $s->{offset} if defined $s->{offset};
+		    
+		    display_sym($n, $c, $a, 1);
+		}
+
+		$addr += $sym->{byte_size};
+	    }
+	}
+
+	$col = $col_max;
+
+    } else {
+
+	die "$macro: type - " . $sym->{tag};
+    }
+
+    return $tsize;
+}
+
+
+########################################################################
+# Dumps all the structure and union symbols.
+########################################################################
+
+sub dump_sym()
+{
+    #### Sort and print all the structure/union names
+    #### in the generate array.
+
+    for my $name (sort keys %generate) {
+
+	my $key = $generate{$name};
+	my $sym = $symbol{$key};
+
+	if ($debug >= 2) {
+	    print "\n========== Symbol " . $sym->{name} . "\n";
+	    print_tree($key, 0);
+	}
+
+	$macro = $sym->{name};
+
+	print "!$macro\n";
+
+	$col = 0;
+	$addr_kme = 0;
+
+	my $size = display_sym(undef, $key, 0, 1);
+
+	set_position($size);
+
+	$col = 0;
+	flush_line();
+    }
+}
+
+
+########################################################################
+# Loops to process all the files specified on the command line.
+########################################################################
+
+#### Process command options.
+
+while (defined $ARGV[0] && $ARGV[0] =~ /^-(.+)/) {
+
+    shift;
+    my $opt = $1;
+
+    while ($opt =~ s/(.)//) {
+
+	if ($1 eq 'a') {
+
+	    $array_max = ($opt ne "" ? $opt : shift) + 0;
+	    last;
+
+	} elsif ($1 eq 'c') {
+
+	    $col_max = ($opt ne "" ? $opt : shift);
+	    last;
+
+	} elsif ($1 eq 'd') {
+
+	    $debug++;
+
+	} elsif ($1 eq 'f') {
+
+	    $name_col_min = ($opt ne "" ? $opt : shift);
+	    last;
+
+	} elsif ($1 eq 'h') {
+
+	    $horizontal++;
+
+	} elsif ($1 eq 'm') {
+
+	    $member_names++;
+
+	} elsif ($1 eq 'n') {
+
+	    $name_col_max = ($opt ne "" ? $opt : shift);
+	    last;
+
+	} elsif ($1 eq 's') {
+
+	    $symfile = ($opt ne "" ? $opt : shift);
+	    last;
+
+	} elsif ($1 eq 't') {
+
+	    $do_typedefs++;
+
+	} elsif ($1 eq 'v') {
+
+	    $verbose++;
+
+	} elsif ($1 eq 'V') {
+
+	    print '$Id: elf2kme,v 1.7 2004/12/15 12:47:54 linutic Exp $' . "\n";
+	    exit 0;
+
+	} elsif ($1 eq 'w') {
+
+	    $col_width = ($opt ne "" ? $opt : shift);
+	    last;
+
+	} else {
+
+	    print STDERR
+		"elf2kme [-dhmtvV] [-a arraymax] [-c numcol]\n" .
+		"                  [-f name_min] [-n name_max]\n" .
+		"                  [-s symfile] [-w colwidth]\n";
+
+	    print STDERR
+		"\nFor a man page: perldoc elf2kme\n";
+	    
+	    exit 2;
+	}
+    }
+}
+
+#### Compute maximum and minimum name widths.
+
+if ($name_col_max < $name_col_min) {
+    $name_col_max = $name_col_min;
+}
+
+$name_min = $col_width * ($name_col_min - 1) + 1;
+$name_max = $col_width==1 ? $name_col_max : $name_col_max * $col_width - 1;
+
+#### Process command parameters.
+
+read_elf($_) for (@ARGV);
+
+if (defined $symfile) {
+
+    read_sym($_) for (split ":", $symfile);
+}
+
+dump_sym();

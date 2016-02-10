@@ -1,0 +1,5 @@
+On a fresh install, you should rename kme_defs.safe to kme_defs.
+
+This prevents us from clobbering your installed version.
+
+

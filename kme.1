@@ -1,0 +1,954 @@
+.       @(#)kme.1 $Revision: 1.12 $ $Date: 2005/01/11 05:10:39 $
+.TH KME 1 "$Revision: 1.12 $ $Date: 2005/01/11 05:10:39 $"
+.SH NAME
+kme \- Kernel Memory Editor
+.SH SYNOPSIS
+.TP 7
+\fBkme
+\fB[\-ahirstx\fB]
+\fB[\-A\ \fRaddrsca\fBl
+\fB[\-b\ \fRbase\fB]
+\fB[\-c\ \fRcorefile\fB]
+\fB[\-C\ \fRcorefile\fB]
+\fB[\-d\ \fRdefsnames\fB]
+\fB[\-D\ \fRdefspaths\fB]
+\fB[\-e\ \fRemuldev\fB]
+\fB[\-f\ \fRfepdev\fB]
+\fB[\-g\ \fRhost[:port][,...]\fB]
+\fB[\-g\ \fRdevice[:baud][,...]\fB]
+\fB[\-I\ \fRsignal\fB]
+\fB[\-k\ \fRboard_index\fB]
+\fB[\-L\ \fRextension\fB]
+\fB[\-m\ \fRhostlist\fB]
+\fB[\-M\ \fRoffset:len\fB]
+\fB[\-n\ \fRnamelist\fB]
+\fB[\-p\ \fRrow\fB]
+\fB[\-P\ \fRpid\fB]
+\fB[\-S\ \fRaddressmask\fB]
+\fB[\-u\ \fRuptime\fB]
+\fB[\-U\ \fRudp_port\fB]
+\fB[\-w\ \fRcolwidth\fB]
+\fB[\fRparams ...\fB]
+.SH DESCRIPTION
+\fIKme\fR is a general purpose screen-oriented
+tool for viewing and modifying memory (such as UNIX kernel memory).
+Upon invokation, the program continuously displays and updates
+one or more sections of memory in a spreadsheet-like format.
+The memory range and display format may be defined
+on the command line or entered on the screen.
+Thereafter the corresponding memory contents are continuously
+displayed and updated on the screen,
+and may be modified by field entry.
+Available builtin display formats are character,
+hex and decimal in
+various byte, word and longword combinations.
+The file \fIkme_defs\fR in the current directory may contain
+user-defined display formats for composite memory structures.
+.PP
+By default, \fIkme\fP displays UNIX memory using the \fI/dev/kmem\fP
+pseudo file.  But \fIkme\fP can display memory in any file or by
+using a number of alternative access methods, such as its own
+RW protocol, the GDB remote serial protocol (over TCP or serial),
+or several other lesser-used methods.
+.PP
+Command line options include:
+.TP 15n
+.BI -a
+Do not display address expressions.
+.TP
+.BI \-A \ addrscale
+Scale input addresses by multiplying them by \fIaddrscale\fR
+before accessing the \fIcorefile\fR.  Scale displayed addresses
+by dividing them by \fIaddrscale\fP before displaying them.
+.sp 1
+The default value for \fIaddrscale\fP is 1 (no scaling).
+.sp 1
+This feature is useful for displaying memory on devices that
+are not byte addressable, such as DSP memory.  For example,
+when displaying memory on an Analog Devices 2187 DSP, a
+scale factor of 2 can be used for data memory and a scale factor
+of 4 can be used for program memory (4 is used instead of 3
+because the underlying DSP interface is 32 bits wide, not 24
+bits wide).
+.sp 1
+NOTE: this feature is not very well tested.
+.TP
+.BI \-b \ base
+Add the hex number \fIbase\fR to all addresses
+before accessing kernel memory.
+.TP
+.BI \-c \ corefile
+Use the file \fIcorefile\fR for memory accesses.
+If the environment variable \fIKME_CORE\fR is defined,
+it contains the default file name.  Otherwise the
+default is \fI/dev/kmem\fR.
+.TP
+.BI \-C \ corefile
+Use the ELF32 file \fIcorefile\fR for memory access.   This option
+is most useful for post-mortem analysis of program that have dropped
+core and is available only if your host system has 'libelf' which may
+also be known as 'elfutils-libelf-devel'.
+.TP
+.BI \-d \ defsnames
+Read user-defined display definitions from
+the colon-separated list of file names given in
+\fIdefsnames\fR.
+If the environment variable \fIKME_DEFS\fR is defined,
+it contains the list of default file names.
+Otherwise the default is \fIkme_defs\fR in the current directory.
+The search path can be modified using the -D option.
+If a file can't be opened, a warning will be printed except
+that no warning will be printed if the file \fIkme_defs\fP
+can't be found.
+.TP
+.BI \-D \ defspaths
+When searching for display definition files which aren't
+absolute file names (see -d), use
+\fIdefspaths\fR as a colon separated list of directories to
+search.
+If the environment variable \fIKME_PATH\fR is defined,
+it contains the list of default directory names.
+Otherwise the default is the current directory.
+.TP
+.BI \-f \ fepdev
+Access kernel memory using DIGI_KME ioctl() calls directed
+to tty device \fIfepdev\fR.
+.TP
+.BI \-g \ gdblist
+Specifies a comma-separated list of TCP/IP hostnames and/or
+serial port devices where memory should be displayed.
+Each host/device must provide a GDB remote serial protocol server.
+An optional \fB:\fIport\fR may be
+appended to each TCP/IP hostname to override the default GDB port of 9000.
+An optional \fB:\fIbaudrate\fR may be
+appended to each serial device to override the default baudrate of 38400.
+Please note that GDB protocol over TCP/IP can be terribly slow on networks
+with latencies larger than a few milliseconds; serial devices may be faster.
+.TP
+.BI -h
+Suppress the one-line help memu normally displayed
+at screen bottom.
+.TP
+.BI -i
+Allow curses to use insert/delete line sequences when
+updating the screen.
+.TP
+.BI \-I \ signal
+Stops the target process when 
+it receives \fIsignal\fR (which may be specifed numerically or by
+name as in SIGHUP) allows a single refresh of the display and immediately
+resumes the target process while leaving the screen frozen until a key
+is pressed.  Typically paired with use of \-P.
+.TP
+.BI \-k \ board_conc
+Default board and concentrator for DigiBoard devices.  This is a
+two digit decimal number.
+.TP
+.BI \-L \ extend.so
+Dynamically load a shared object as an extension to the
+display format capabilities of "kme".  Not supported on
+all operating systems.
+.TP
+.BI \-m \ hostlist
+Specifies a colon-separated list of TCP/IP hostnames where memory
+should be displayed.
+Each host must provide a kme/udp memory read/write (RW) server,
+as specified in the
+.B services
+file.
+.TP
+.BI \-M \ offset:len
+Access memory by using the mmap() system call to map the \fIcorefile\fP
+directly into kme's address space.  Memory is mapped beginning at
+\fIoffset\fP bytes from the beginning of \fIcorefile\fP for a length
+of \fIlen\fP bytes.  Note that \fIcorefile\fP
+is typically set to \fB/dev/pmem\fP when this option is used.
+\fIOffset\fP and \fIlen\fP
+are specified using the conventions of strtol(), e.g. 0x500000:0x1000.
+.TP
+.BI \-n \ namelist
+Read symbol definitions from the colon separated list of
+file names given in \fInamelist\fR.
+If the environment variable \fIKME_SYMS\fR is defined,
+it contains the default file list.
+Otherwise the default is \fIkme_syms\fR in the current directory.
+Each file may be either a binary file (defined by the ld library)
+or an ASCII file where each line contains a hexidecimal symbol
+value followed by a alphanumeric symbol name.
+.TP
+.BI \-p
+Position the initial display so
+\fIrow\fR is at the top of the screen.
+.TP
+.BI \-P \ process_id
+Access the memory space of the running process with the
+specified  \fIprocess_id\fR.
+Best when combined with the \fI-n\fR option.
+Note that KME uses PTRACE to view the memory of the process,
+so viewing is invasive.
+KME must stop the process each screen refresh,
+and KME must catch and rethrow all exceptions handled by the process.
+.TP
+.BI \-r
+Open \fIcorefile\fR read-only, and prohibit all
+attempts to modify memory.
+.TP
+.BI \-s
+Swap multiple-byte quantities displayed from and written to the
+core file.
+.TP
+.BI \-S \ addressmask
+All addresses read from the symbols file (ascii, coff, or nlisted)
+will be binary masked with \fIaddressmask\fR.   
+.TP
+.BI \-t
+Normally, indexed arrays are displayed in the form of "foo+0xb4".
+This flag changes it to display the index into the array instead
+of the offset.  The example may then display as "foo[4]".  Same
+as ^T within the program.
+.TP
+.BI \-u \ uptime
+Wait \fIuptime\fR tenths of a second after refreshing
+the screen before beginning a new refresh cycle.
+Default is 2, limiting screen refresh time to 5/second.
+An update time of zero suppresses refresh until a command key
+is depressed.
+.TP
+.BI \-U \ port
+When accessing memory over a network (option \fI-m\fR or \fI-g\fR),
+use the specified \fIport\fP rather than the normal default port.
+.TP
+.BI -V
+Print version and other information determined by the configuration
+process when kme was built.
+.TP
+.BI \-w \ colwidth
+Set the kme column width to the desired value. The current default is 9,
+up from the traditional 8.
+.TP
+.BI -x
+Print debugging information to \fIstderr\fR.
+.PP
+Additional parameters specify initial screen
+display requests, or user format defines.  The form:
+.PP
+.RS
+\fIline_number \fB= \fImemory_address \fB/ \fIdisplay_format\fR
+.RE
+.PP
+says to display data at screen \fIline_number\fR
+from \fImemory_address\fR
+according to \fIdisplay_format\fR.  If \fIline_number\fR is 0 
+this data will display on the line following the first blank line 
+after the previous \fIdisplay_format\fR has completed.   This 
+method of determining format positioning may affect subsequent 
+absolutely anchored references.  
+
+The form:
+.PP
+.RS
+\fIuser_display_char \fB= \fIdisplay_format\fR
+.RE
+.PP
+defines the upper-case single \fIuser_display_char\fR
+to be an abbreviation for the \fIdisplay_format\fR string which follows.
+.PP
+As a special case when using the \fB-f\fR
+option, the memory address field may be prefixed by one or two
+hexadecimal digits and a (\fB:\fR) to designate the address space
+of a particular DigiBoard device.
+The first digit specifies the PC-bus board,
+while the second digit (if present) further specifies a
+concentrator attached to that host adapter.
+For example the prefix \fB03:1000\fR specifies address 0x1000
+in the 3rd concentrator attached to the 1st host adapter board.
+.PP
+As a special case when using the \fB-m\fR
+option, the memory address field may be prefixed by one or two
+hexadecimal digits and a (\fB:\fR) to designate the hostname and
+\fBkmed\fP corefile of a particular device.
+The first digit specifies the nth hostname in the \fB-m\fP hostlist option,
+while the second digit (if present) further specifies the nth
+corefile given with \fBkmed\fP's \fB-c\fP corelist option.
+For example the prefix \fB01:1000\fR specifies address 0x1000
+in the 2nd corefile attached to the \fBkmed\fP ruuning on the 1st hostname.
+.SH SCREEN\ DISPLAY
+The CRT screen display is tabular, with a line number leftmost,
+the hex memory address next, and memory data fields every
+8 columns thereafter across the screen.
+On a 24 by 80 CRT screen, the display is 23 address
+lines tall by 8 data columns wide,  with a help menu on
+the bottom line.
+.PP
+Regardless of the screen size, \fIkme\fR supports 200
+virtual display lines.
+At any given time,
+only a subset of these lines may be viewed through the
+screen window.
+The screen window follows the cursor, so the user may
+scroll through the range in the manner of an editor or
+spreadsheet.
+.PP
+Through command line parameters, or by screen entry, the
+user selects the data to be displayed on each address line.
+From the screen there are two methods to accomplish this.
+The user may type an \fBm\fR and enter a memory
+display string or user format character definition
+just as it would appear on a command line.
+He may also position the cursor to the desired
+address field, type the letter \fBc\fR for change,
+or \fBe\fR for edit,
+and then enter a string of the form:
+.PP
+.RS
+\fIaddress_expression\fR \fB/ \fIdisplay_format\fR
+.RE
+.PP
+In either case, the memory \fIaddress_expression\fR value
+immediately appears on the specified display line,
+followed by zero or more data fields according to
+the \fIdisplay_format\fR given.
+If more data fields are specified than fit across the
+screen, the data is extended to multiple lines,
+and the memory address of the first data field on each line
+is displayed in the corresponding address field.
+.SS "Address Expression"
+The \fIaddress_expression\fR may include decimal (0t prefix)
+and hexidecimal numbers,
+symbols defined in the namelist file,
+and the operators listed below.
+Precedence is modeled after the C-language.
+.TP 8
+.B .
+Structure element designator.
+Performs a simple binary add,
+but with much higher precedence.
+.TP 8
+.B {}
+2-byte Subscript.
+The form
+.IB a { b }
+returns the 16-bit quantity at address
+.IB a \(pl b
+in the corefile.
+.TP
+.B []
+4-byte Subscript.
+The form
+.IB a [ b ]
+returns the 32-bit quantity at address
+.IB a \(pl b
+in the corefile.
+.TP
+.B \(**
+Unary 32-bit indirection.
+.TP
+.B @
+Unary 16-bit indirection.
+.TP
+.B #
+Unary 8-bit indirection.
+.TP
+.B $
+Fetch temporary value.
+The size of the current display item is available in temporary 0,
+although it will always be zero the first time the item is displayed.
+Other temporaries are stored with the
+.B $
+display operator.
+.TP
+.B \(pl
+Unary plus.
+.TP
+.B \(mi
+Unary minus.
+.TP
+.B ~
+Unary NOT.
+.TP
+.B ^
+Swap 2 byte operand.
+.TP
+.B %
+Swap 4 byte operand.
+.TP
+.B \(**
+Multiply.
+.TP
+.B /
+Divide.  This operator is recognized only in parenthesized expressions,
+so it is not confused with the
+.B /
+separator character.
+.TP
+.B %
+Modulus.
+.TP
+.B \(pl
+Binary add.
+.TP
+.B \(mi
+Binary subtract.
+.TP
+.B <<
+Shift left.
+.TP
+.B >>
+Shift right.
+.TP
+.B <
+Less than.
+.TP
+.B >
+Greater than.
+.TP
+.B <=
+Less equal.
+.TP
+.B >=
+Greater equal.
+.TP
+.B ==
+Equal.
+.TP
+.B !=
+Not equal.
+.TP
+.B &
+Bitwise AND.
+.TP
+.B ^
+Bitwise Exclusive OR.
+.TP
+.B |
+Bitwise Inclusive OR.
+.TP
+.B ?:
+C-language style if-else conditional value operator.
+.TP
+.B <be16>
+Conditional swap 2 byte operand.
+On a big-endian CPU, this operator is a NOP.
+On a little-endian CPU, this operator is the same as the
+.B ^
+operator.
+.TP
+.B <be32>
+Conditional swap 4 byte operand.
+On a big-endian CPU, this operator is a NOP.
+On a little-endian CPU, this operator is the same as the
+.B %
+operator.
+.TP
+.B <le16>
+Conditional swap 2 byte operand.
+On a little-endian CPU, this operator is a NOP.
+On a big-endian CPU, this operator is the same as the
+.B ^
+operator.
+.TP
+.B <le32>
+Conditional swap 4 byte operand.
+On a little-endian CPU, this operator is a NOP.
+On a big-endian CPU, this operator is the same as the
+.B %
+operator.
+.SS "Display Format"
+Builtin format characters are lower-case letters,
+punctuation marks, and text strings delimited by
+single and double quotes.
+As a special case, text strings containing \'\\h\' are
+used to toggle highlighting in the displayed string.
+You may want to use this for section headers or elsewhere
+for emphasis.
+User-defined format characters are upper case alpha
+letters.
+Format characters, and format strings enclosed in parens
+may be preceeded by a decimal repetition
+.I count,
+and concatenated to form a display string of
+arbitrary complexity.
+User-defined format characters may include other
+user-defined characters to a recursive limit of 10.
+.PP
+The builtin format characters are given below.
+Except as otherwise described, a preceeding decimal repetition
+behaves exactly as though the following character were
+repeated that number of times.
+.TP 8
+.B \(pl
+Increment the working memory address.
+.TP
+.B \(mi
+Decrement the working memory address.
+.TP
+\fB\'\fItext\fB\'\fR
+Display \fItext\fR.  If \fItext\fR is more than 8 characters, use multiple
+fields as required.  Ignore any repetition count.
+.TP
+\fB"\fItext\fB"\fR
+Same as above.
+.TP
+.B \.
+Display a blank data field.
+.TP
+.B :
+Display nothing, but fetch subsequent blocks of display data from the
+memory device in blocks of
+.I count
+bytes.
+The effect continues until the end of the format string.
+This is often useful when reading device registers.
+.TP
+.B $
+Display nothing, but store the current display address in the
+temporary value given by
+.I count.
+.TP
+.B % 
+Display nothing, but toggle the endianness swap flag.
+If enclosed in parenthesis, the effect ends at the next
+right paren.  Otherwise the effect continues until the end of
+the format string.
+.TP
+.B =
+Display nothing, but set an internal variable called
+.I width
+to the value of
+.I count.
+.TP
+.B *
+Display nothing, but set the new
+.I count
+to the temporary value stored in temporary register number
+.I count.
+.TP
+.B &
+Display nothing, but store the value at the current display
+address in temporary register number
+.I count.
+The width of the value fetched is determined by the current
+setting of
+.I width
+(see = format).
+.TP
+.B ^ 
+Display nothing, but roundup the value in temporary register
+number
+.I count.
+The value is rounded up to the next multiple of the current
+value of
+.I width.
+.TP
+.B #
+Display nothing.
+If enclosed in parenthesis, set the working memory address to
+the working memory address at the last left paren plus \fIcount\fR.
+Otherwise set the working memory address to
+\fIaddress_expression\fR plus \fIcount\fR.
+.TP
+.B a
+Mask the next memory byte with 0x7f and display the result
+in ASCII.  Characters below 0x20 are shown with a caret as
+control characters.
+.TP
+.B b
+Display the next memory byte in hexadecimal.
+.TP
+.B c
+Display the next byte in an unambiguous character format.
+Characters below 0x20 are shown with a caret as control characters.
+Characters greater-equal 0x7f are shown in hexadecimal.
+.TP
+.B d
+Display the next 2 bytes as signed decimal.
+.TP
+.B e
+Display the next 4 bytes as an unsigned decimal.  If the number is
+too large to fit in one column, the number is truncated, and a plus sign
+is displayed on the right.
+.RB ( \+ )
+followed by the lower 7 digits of the decimal value.
+.TP
+.B f
+Display the next 4 bytes as a float, with
+printf mode \fB"%-*.*g"\fR, where the first \fB*\fR is the column width,
+and the second \fB*\fR is the column width - 6.
+.TP
+.B g
+Display the next 8 bytes as an unsigned decimal quadword (long long).
+If the number is too large to fit in two columns, the number
+is truncated, and a plus sign is displayed on the right.
+.RB ( \+ )
+followed by the lower 15 digits of the decimal value.
+.TP
+.B h
+Display the next 8 bytes as a double, with printf mode \fB"%-*.*g"\fR,
+where the first \fB*\fR is double the column width, and the second \fB*\fR
+is double the column width - 7.
+.TP
+.B i
+Display the next byte as a character (masked to 7 bits),
+and the following byte in hexadecimal.
+.TP
+.B l
+Display the next 4 bytes as an 8-digit hexadecimal number.
+.TP
+.B n
+Advance to the next display line.
+.TP
+.B q
+Display the next 8 bytes as a 16-digit hexadecimal quadword (long long).
+.TP
+.B s
+Display string data with zeroes shown as spaces,
+and other unprintable characters shown as periods.
+When used with a repeat count, up to \fIcolumn-width\fR characters are
+shown per field, using as many fields as necessary to show
+the complete string.
+.TP
+.B t
+Display the next byte of memory as unsigned decimal.
+.B u
+Display the next 2 bytes as an unsigned decimal.
+.TP
+.B w
+Display the next 4 bytes as a float, with
+printf mode \fB"%-*.8g"\fR, where \fB*\fR is double the column width.
+.TP
+.B x
+Display the next 2 bytes of memory in hexadecimal.
+.TP
+.B z
+Display the next 4 bytes of memory in decimal.
+.SH SCREEN_COMMANDS
+Screen commands are all single keystrokes, possibly preceeded by a
+repeat count.  Available commands are:
+.TP 5
+.B ^F
+Page forward.
+.TP
+.B ^U
+Page back.
+.TP
+.B ^D
+Scroll down.  The line scroll count is remembered and becomes
+the default scroll count next time.
+.TP
+.B ^T
+Normally, indexed arrays are displayed in the form of "foo+0xb4".
+This flag changes it to display the index into the array instead
+of the offset.  The example may then display as "foo[4]".  Same
+as -t on the command line.
+.TP
+.B ^U
+Scroll up.  The line scroll count is remembered and becomes
+the default scroll count next time.
+.TP
+.B ^J
+Move down to the beginning of the next line.
+.TP
+.B =
+Makes the current row the \fIindirect row\fR.
+After this is done, the line number is highlighted.
+This alters the action taken by the \fI*\fR command (below).
+When an \fIindirect row\fR is selected,
+the selected address field used by the \fB*\fR command is
+the first \fBaddress_expression\fR above this row.
+Entering this key a second time cancels the effect.
+.TP
+.B *
+When entered over a left column hex address
+or a hex data field,
+causes the address under the cursor to temporarily replace the
+\fIaddress_expression\fR in the selected address field.
+The selected address field is the \fIaddress_expression\fR at or above the
+current row, unless an \fIindirect row\fR was chosen with the \fB=\fR key.
+Then it is the first address field at or above the \fIindirect row\fR.
+Entering this key over an \fIaddress_expression\fR field restores
+the original contents.
+.TP
+.B ^
+Move to the address field.
+.TP
+.B \(pl
+Advance the memory address of the current display line
+by the size of the data displayed.
+.TP
+.B \(mi
+Decrement the memory address of the current display line
+by the size of the data displayed.
+.TP
+.B !
+Prompt for and execute a shell command.
+.TP
+.B ?
+Toggle the appearance of the help menu on the bottom
+line of the screen.
+.TP
+.B a
+Toggle address display mode.
+.TP
+.B b
+Prompt for and accept a new memory base address.
+.TP
+.B c
+Change the field under the cursor.
+.TP
+.B d
+Delete the current line, and remember it in the save buffer.
+If a repeat count is given, delete and keep all those lines
+in a single operation.
+.TP
+.B e
+Edit the contents of the field under the cursor using \fIvi\fR
+style editing commands.
+.TP
+.B f
+When using an HP64000 emulator, switch command input to control
+port A.  Memory updates will not succeed until switched back
+by other means.
+.TP
+.B g
+If no repeat count is given, move the cursor to the last
+virtual display line.
+If a count is given, move to the line number given in that count.
+.TP
+.B h
+Move left.
+.TP
+.B i
+Insert \fIcount\fR lines before the current one.
+.TP
+.B j
+Move down.
+.TP
+.B k
+Move up.
+.TP
+.B l
+Move right.
+.TP
+.B m
+Prompt for and accept either a display line request or
+a user format macro using the command line syntax.
+.TP
+.B n
+Discard all existing symbol definitions and re-read the
+\fInamelist\fR files to get a fresh copy.
+.TP
+.B o
+Output (print) the contents of the current screen to a file.
+If the first character of the file name is the pipe character (\fB|\fP),
+then the output is piped to a program.  If the first two characters
+of the file name are \fB>>\fP then the output is appended to the file.
+.TP
+.B p
+Put deleted lines back into the display.
+.TP
+.B q
+Quit the program.
+.TP
+.B r
+Discard all existing macro definitions and re-read
+the \fIdefspath\fR files to get a fresh copy.
+.TP
+.B s
+Save the configuration of the current display to a command
+file.  Subsequently executing that command file should
+automatically recreate the current display.
+.TP
+.B u
+Allow the user to enter a new update interval.
+.TP
+.B y
+Yank (copy) the specified number of screen lines into the
+save buffer.
+.TP
+.B z
+Zero the memory location under the cursor.
+.PP
+During all field entry, the user may invoke vi-style commands to
+edit the entry in the style of \fIksh\fR.
+This facility supports
+the basic line editing command characters \fB$.0abcdDfhiIlrstuwx\fR,
+and the history command characters \fB+-/jkn\fR.
+The character \fBq\fR quits the field entry w/o change.
+.SH USER\ DISPLAY\ FORMATS
+On startup, user-defined display formats are read from the
+colon-separated list of files defined in \fIdefspath\fR.
+In this file, a line beginning with an upper-case letter
+defines the corresponding user format character.
+Subsequent indented lines are continuations.
+Single and double quoted strings are passed verbatim,
+otherwise white space is discarded, and everything on a
+line after an unquoted (#) is a comment.
+.PP
+An example file might contain:
+.PP
+.nf
+.TA 4
+A	"thead""ttail""tstart""tmax""rhead""rtail""rstart""rmax"
+	8xN
+	"cport""seg""rlow""rhigh"n
+	4xnN
+	"tlow""dcdtime""flow""mstat""lstat""status"n
+	2x4bnN
+	"imask""baud""dtype""hndshk""xoff""xon""hflush""btime"
+	4b2c2bN
+	"bcount""portnum""dmask""irq""tmask""tval""bstart"n
+	6bxnN
+	"rr0""rr1""rr3""rr10""wr0""wr1""wr2""wr3"
+	8bN
+	"wr4""wr5""wr9""wr11""wr12""wr13""wr14""wr15"
+	8bN
+	"ov/un""dcdlo""dcdhi""portbit"n
+	4xnN
+	"mcount""m10ms""mand""mor""mval"n
+	xxbbbn 49+
+
+L	l.
+
+N	n
+.fi
+.PP
+This file defines format \fBA\fR to display a 128 byte
+structure.  The name of each field is displayed immediately
+above it.
+The \fB49+\fR at the end of the \fBA\fR definition pads out
+the size of the structure to be 128 bytes so that the \fB+\fR
+and \fB-\fR commands will work as desired.
+Normally, double spacing is used between lines,
+but the user may make it single spaced by redefining N to be Null.
+.PP
+When \fBl\fR format fields are displayed side-by-side,
+they run together.  The \fBL\fR user format overcomes this by
+placing a blank field after the 8-character hexadecimal number.
+.PP
+The syntax for user defined formats has been enhanced, while
+remaining compatible with the mode described above.  In a complex
+system, a limit of 26 uppercase user defined formats was restricive and 
+difficult to make mnemonic.  You can now also define the above
+format like this:
+
+.nf
+.TA 4
+!channel	"thead""ttail""tstart""tmax""rhead""rtail""rstart""rmax"
+	8xN
+	...
+.fi
+
+You must display this symbolically named format with a
+leading \fB!\fR character, so the program knows the difference 
+between a symbol named "channel" and a format string consisting
+of \fBc\fR, \fBh\fR, and so on.   All alphanumeric (plus underbar) 
+characters following the \fB!\fR are interpreted to be part of the format
+name.
+.SH "EXTENSIONS"
+A new feature in kme is the ability to extend display formats
+using shared objects.  You can write your own C program to
+add an arbitrary display format to kme.  The method to do
+this is operating system specific.  With the GNU toolchain,
+you would do something like the following:
+
+.nf
+.TA 4
+	$ cc -c dxbmsg.c -o dxbmsg.o
+	$ ld -shared dxbmsg.o -o dxbmsg.so
+	$ kme -L dxbmsg.so 1=0/!dxbmsg
+.fi
+
+The shared object must have an
+.I _init()
+routine which calls:
+
+.nf
+.TA 4
+	typedef char * (*DLFUNC)(ulong *addrp);
+
+	add_format(char *name, char *format, DLFUNC dlfunc);
+.fi
+
+for each new format
+.I name
+that it wants to define.  If
+.I format
+is not NULL,
+then the new format is just a simple string.  This is not
+interesting as you can already do this with kme_defs files.
+However, if
+.I dlfunc
+is not NULL, then (*dlfunc)(&addr)
+is called whenever the format needs to be displayed.
+.I &addr
+is a pointer to the variable which holds the current display
+address.
+.PP
+.I (*dlfunc)(ulong *addrp)
+can do one of two things.  It can generate
+a format string on the fly and return a pointer to it.
+In this case, kme will display the format as returned.
+Or it can handle doing display updates itself.  In this
+case, it returns NULL and must update the current display
+address (*addrp) itself.
+.PP
+An example format that displays a real C-string by returning
+a customized display format string is:
+.nf
+.TA 8
+extern unsigned char *mem;
+typedef unsigned long ulong;
+
+char *
+format(ulong * addrp)
+{
+	ulong		faddr = *addrp;
+	ulong		zaddr;
+	static char	fmt[32];
+
+	for (;;)
+	{
+		if (!getmem(1))
+			return " \"????\" ";
+		if (*mem == 0)
+			break;
+		(*addrp)++;
+	}
+	zaddr = *addrp;
+	*addrp = faddr;
+
+	sprintf(fmt, "%d a 1+\n", zaddr - faddr);
+
+	return (fmt);
+}
+
+void
+_init(void)
+{
+	add_format("asciiz", NULL, &format);
+}
+.fi
+.PP
+The above example, although simple to implement, also shows why there
+is a second method for the way that extensions can choose to
+operate.  The above example is inefficient, as memory
+will be traversed twice (once in the extension, and
+once in kme itself).  However, the second method currently
+requires some knowledge of how kme is implemented internally.
+Translation: we are currently too busy to clean up and
+expose a set of functions for your convenient use.
+.SH FILES
+.TP 20
+/usr/lib/kme_defs
+User defined formatting commands.
+.TP
+/dev/kmem
+Access to kernel memory.
+.TP
+/etc/services
+Internet Services file.
+.SH BUGS
+There needs to be a stack of last memory addresses, so that
+you can use '-' to step backwards thru memory when a variable
+length format from an extension is being used.
+.PP

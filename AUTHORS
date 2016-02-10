@@ -1,0 +1,31 @@
+The Kernel Memory Editor was written originally by Gene Olson,
+(gene@users.sourceforge.net) and has been extensively modified
+by Robert lipe (robertl@users.sourceforge.net) and Rick Richardson
+(rickr@users.sourceforge.net)
+
+The "vi.c" module was originally part of the SC Spreadsheet
+Calculator.  The following paragraph is taken from the SC
+manual page.
+
+This is a much modified version of a  public  domain  spread
+sheet originally authored by James Gosling, and subsequently
+modified and posted to USENET by Mark Weiser under the  name
+vc.   The  program  was subsequently renamed sc, and further
+modified by numerous contributors, Jeff Buhrt  of  Proslink,
+Inc.   ({sequent,  uunet}!sawmill!prslnk!buhrt)  and  Robert
+Bond of Sequent, prominent among them.   Other  contributors
+include:   Tom  Anderson,  Glenn  T.  Barry,  Gregory  Bond,
+Stephen (Steve) M.  Brooks,  Peter  Brower,  John  Campbell,
+Lawrence  Cipriani,  Jim  Clausing,  Dave Close, Chris Cole,
+Jonathan Crompron, David  I.  Dalva,  Glen  Ditchfield,  Sam
+Drake,  James  P. Dugal, Paul Eggert, Andy Fyfe, Jack Goral,
+Piercarlo "Peter" Grandi, Henk Hesselink, Jeffrey  C  Honig,
+Kurt  Horton,  Jonathan  I.  Kamens,  Peter King, Tom Kloos,
+Casey Leedom, Jay Lepreau, Dave  Lewis,  Rick  Linck,  Soren
+Lundsgaard,  Tad  Mannes,  Rob  McMahon, Chris Metcalf, Mark
+Nagel, Ulf Noren, Marius Olafsson, Gene H.  Olson,  Henk  P.
+Penning,  Rick  Perry, Larry Philps, Eric Putz, Jim Richard-
+son, Michael Richardson, R. P. C. Rodgers, Kim Sanders, Mike
+Schwartz,  Alan Silverstein, Lowell Skoog, Herr Soeryantono,
+Tim Theisen, Tom Tkacik, Andy Valencia, Adri  Verhoef,  Rick
+Walker, Petri Wessman, and Tim Wilson.

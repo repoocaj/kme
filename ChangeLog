@@ -1,0 +1,44 @@
+2004-05-25	Rick Richardson <rickr@mn.rr.com
+	* Modify readsym() to be able to parse linux's three field
+	  /boot/System.map format, while retaining the ability to
+	  parse the two field /proc/ksyms format.
+	* Who doesn't have perl in /usr/bin these days?
+	  update pstruct (probably no better than the one in /usr/bin)
+	  update mk_kme_defs
+	* Add NOTE for using pstruct with newer gcc to README.mk_kme_defs
+
+2004-05-12	Rick Richardson <rickr@mn.rr.com
+	* Add 1st cut of kmed manual page.  Improvements forthcoming.
+
+2004-04-28	Rick Richardson <rickr@mn.rr.com
+	* Add -D to the list of options saved with the 's' command.  Also,
+	  save the -d and the -D options only if they have changed from
+	  the defaults.
+
+2004-04-26	Rick Richardson <rickr@mn.rr.com
+	* Really gut the old read_mem()/wite_mem() code, and implement
+	  both fixed and floating mmap() capability in addition to
+	  the standard lseek/read/write method.
+
+2004-04-22	Rick Richardson <rickr@mn.rr.com
+	* Add mmap capability to kmed.  This is selected with the
+	  corefile syntax: -c device,0xADDR,0xSIZE
+
+2004-04-21	Rick Richardson <rickr@mn.rr.com
+	* Add -d to the list of options saved with 's' command.  Put escaped
+	  newlines into the saved file for easier editing/viewing.
+
+2004-04-20	Rick Richardson <rickr@mn.rr.com
+	* Default rw_max to 128.  This avoids a bug where a rw packet with
+	  size 0 would be sent if the very first display format used any
+	  of the indirection operators.
+
+2004-04-17	Rick Richardson <rickr@mn.rr.com
+	* Add -r (readonly) flag to kmed and error message if corefile
+	  cannot be opened.  Add -D (debug level) flag to kmed.
+
+2002-10-27	Rick Richardson <rickr@mn.rr.com
+	* Add -g command line option and GDB remote serial protocol.
+
+2001-06-03	Gene Olson et al
+	* This is the first truly public release of KME.

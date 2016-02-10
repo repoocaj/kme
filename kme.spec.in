@@ -1,0 +1,49 @@
+Name		: @PACKAGE@
+Version		: @VERSION@
+Release		: 1
+Group		: System/Kernel
+
+Summary		: The Kernel Memory Editor
+
+Copyright:	: GPL
+URL		: http://www.sourceforge.net/projects/kme/
+
+Buildroot	: %{_tmppath}/%{name}-%{version}
+Source		: %{name}-%{version}.tar.gz
+
+
+%Description
+KME is the Kernel Memory Editor.  Like many useful programs, it has outgrown
+it's name and now allows semi-realtime symbolic editing of process memory,
+kernel memory, in-circuit emulators, and has ioctl hooks to talk to many Digi
+Int'l devices.
+
+KME excels at allowing you to walk through memory in a symbolic manner.  It
+knows about arrays, letting you traverse them with a single keystroke.  If
+you're trying to watch a buffer in semi-realtime, KME is the tool.
+
+It is portable to almost any existing UNIX derivate and CPU architecture.
+
+
+%Prep
+%setup -q
+
+%Build
+CFLAGS="${RPM_OPT_FLAGS}" ./configure --prefix=/usr --mandir=/usr/share/man/en/
+make
+
+%Install
+make install DESTDIR=${RPM_BUILD_ROOT}
+
+%Clean
+rm -rf ${RPM_BUILD_ROOT}
+
+%Files
+%defattr(-,root,root)
+/usr/bin/kme
+/usr/bin/kmed
+/usr/share/man/en/man1/kme.1*
+/usr/share/kme/i80321.kme
+/usr/share/kme/gt64011.kme
+%doc AUTHORS COPYING INSTALL NEWS README README.kme_defs README.mkkmedefs
+%doc ChangeLog

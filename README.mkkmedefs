@@ -1,0 +1,97 @@
+@(#) $Id: README.mkkmedefs,v 1.2 2004/05/25 16:11:52 rickrich Exp $
+
+This is still somewhat skank, but sure beats doing it by hand.
+
+The idea is to use gcc (which must have been compiled
+"--with-stabs" which is not the default when configured
+native on SCO) to parse a header file and emit GNU/BSD .stabs
+records to get the size/addresses of structures.
+
+I've modified a version of pstruct (from the Perl 4.036
+distribution, requires Perl) to deal with the recent
+changes in GCC that allow multiline/quasi-recursive .stabs
+definitions.  (I've sent this to lwall@netlabs.com and 
+tchrist, but it's unknown if this will make it to the Perl 5
+distribution.)
+
+Make a tiny little compilable file that includes the headers 
+you want.  BE CERTAIN TO GET YOUR MANIFEST CONSTANTS RIGHT.
+If this file compiles with different #defines from your Driver.o,
+interesting things may happen to your structure sizes.
+
+In my example, demo_mkd.c is this file:
+
+#include <sys/types.h>
+
+#define _INKERNEL
+#include <sys/tty.h>
+
+main(){}
+
+Now, invoke "pstruct -w" on this file.  mk_kme_defs (requires
+Perl) parses this output.  Here's a simple command line:
+
+./pstruct -w demo_mkd.c | ./mk_kme_defs > kme_defs
+
+NOTE: with more recent versions of gcc, you will need to use:
+
+./pstruct -w CFLAGS='-g -S -gstabs' | ./mk_kme_defs > kme_defs
+
+
+BUGS
+    Unions confuse mk_kme_defs very badly.  I 
+    prefer to take the output of pstruct (which does
+    appear to do the right thing for unions), hand edit 
+    out the union stuff, and feed this "fixed" file 
+    to mk_kme_defs.
+
+    Machine generated kme_defs files contain room for 
+    aesthetic optimizations, but are very accurate 
+    with regards to padding, alignment, and structure 
+    size. 
+
+    Specifically, long member names tend to shuffle 
+    the screens in bad ways.  mk_kme_defs should also
+    be aware of "invariant constants" in member names.
+    Take this example from tty.h...
+
+!tty    	"c_cc" "c_cf" n
+	lln
+	"c_cl" "c_cc" "c_cf" "c_cl" "c_cc" n
+	llllln
+	"c_cf" "c_cl" "c_ptr" "c_count" "c_size" "c_ptr" n
+	lllxxln
+	"c_count" "c_size" "t_proc" "t_iflag" "t_oflag" "t_cflag" "t_lflag" "t_state" n
+	xxlxxxxxn
+	"t_pgrp" "t_line" "t_delct" "t_term" "t_tmflag" "t_col" "t_row" "t_vrow" "t_lrow" n
+	xbbbbbbbbn
+	"t_hqcnt" "t_dstat" "t_cc[13]" "t_mstate" "t_merr" n
+	bb13bbbn
+	"t_xstate" "ciflag" "ciowner" "t_xmp" "t_schar" "t_yyy[3]" n
+	bbblb3bn
+
+    Mk_kme_defs should probably recognize the leading "?_" 
+    regex and delete them.  This would make "t_iflag" into
+    "iflag".
+
+    It could also optimize lines like:
+
+	xbbbbbbbbn
+
+    to use the repeat prefix operator like
+
+        x8bn
+
+    I have not done this at this point, becuase of the very
+    real chance that you will have to manually move things from
+    one line to the next.
+
+TODO
+
+    This certainly seems a scenic route to extract alignment,
+    structure size, and padding out of a program.  It is rumoured
+    that extracting it from ELF binaries may be easier, but this
+    mess is known to work on most UNIX-like substances.  Sigh.
+
+---
+Robert Lipe    Sr. Software Engr.    Arnet Corp.  robertl@arnet.com

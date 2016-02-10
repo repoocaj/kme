@@ -1,0 +1,198 @@
+#
+#	Intel 80321 I/O processor KME definitions
+#
+#	by Rick Richardson 10/2002
+#
+
+#
+#	Intel 80321 I/O processor ATU registers (PCI bus interface)
+#	Internal Addr: 0xffffe100
+#
+!80321_atu
+	"Vendor" "Device" "Command" "Status" "Rev" "Class" "ClassHi" n
+	4x b b x n
+	"LineSz" "Latency" "Header" "BIST" n
+	4b n
+	"BAR0" .. "BAR1" .. "BAR2" n
+	q . q . q n
+	"SubVend" "SubId" "ExpROM" . "CapPtr" n
+	4+ x x l . b 3+ 4+ n
+	"IntLine" "IntPin" "MinGrnt" "MaxLat" n
+	4b n
+	n
+	"InLimit0" . "InXlate0" . "RomLimit" . "RomXlate" n
+	l. l. l. l. n
+	"InLimit1" . "InLimit2" . "InXlate2" . "OutIOXlate" n
+	l. l. l. l. n
+	"OutMemXlate0" . "OutMemXlate1" . "OutUpDirXlate" n
+	q . q . 8+ l 4+ n
+	"ATUCR" . "PCSR" . "IntStatus" "IntMask" n
+	l. l. l. l n
+	"InBase3" .. "InLimit3" . "InXlate3" n
+	q. l. l. n
+	"OutConfigAddr" "OutConfigData" n
+	4+ l. 4+ l. 12+ n
+	"PCIDrive". "PMcapID" "PMnext" "PMcap" "PMcsr" "MSIcapID" "MSInext" n
+	l. b b x x 10+ b b n
+	"Message:" "Control" "Address" .. "Data" n
+	. x q. x 2+ n
+	"PCI-X:" "CapId" "Next" "Command" "Status" "IntRoute" n
+	. b b x l 4+ l n
+
+#
+#	Intel 80321 I/O processor MU registers (I2O interface)
+#	Internal Addr: 0xffffe300
+#
+!80321_mu 16+
+	"InMsg0" . "InMsg1" . "OutMsg0" . "OutMsg1" n
+	l. l. l. l n
+	"InBound:" . "Doorbell" . "IntStat" "IntMask" n
+	.. l. l l n
+	"OutBound:" "Doorbell" . "IntStat" "IntMask" n
+	.. l. l l 24+ n
+	"MUconfig" . "Qbase". "NOTE: head/tail on next 4 lines" n
+	l . l 8+ . "are reversed from normal meaning" n
+	"InFreeHead(in)" "InFreeTail(out)" "InPostHead(in)" "InPostTail(out)" n
+	l. l. l. l. n
+	"OutFreeHead(in)" "OutFreeTail(out)" "OutPostHead(in)" "OutPostTail(out)" n
+	l. l. l. l. n
+	"IndexAddr" l n
+
+#
+#	Intel 80321 I/O processor DMA registers
+#	Internal Addr: 0xffffe400
+#
+!80321_dma
+	"CHAN0" "Control" "Status" "Count" "DescCtrl" . "DescAddr"  n
+	. l l 24+ e l 28- . l n
+	. "NextAddr" . "PCI Addr" .. "Bus Addr" n
+	. l . q . l 32+ n
+	"CHAN1" "Control" "Status" "Count" "DescCtrl" . "DescAddr"  n
+	. l l 24+ e l 28- . l n
+	. "NextAddr" . "PCI Addr" .. "Bus Addr" n
+	. l . q . l n
+
+!80321_dmadesc
+	"nda" . "pciaddr" . "lcladdr" . "bc" "dc" n
+	l . l4+ . l . e l 8+ n
+
+#
+#	Intel 80321 I/O processor Memory Control registers
+#	Internal Addr: 0xffffe500
+#
+!80321_mem
+	"SDRAMinit" "SDRAMcontrol" n
+	l. l n
+	"SDRAMbase" "SDRAMbank0size" "SDRAMbank1size" n
+	l. l. l 32+ n
+	"ECCctrl" "ECClog0" "ECClog1" "ECCaddr0 " "ECCaddr1 " "ECCtest" n
+	l l l l. l. l n
+	"MCISR" "RFR" "DBUDSR" "DBDDSR" "CUDSR" "CDDSR" "CEUDSR" "CEDDSR" n
+	8l n
+	"CSUDSR" "CSDDSR" "REUDSR" "REDDSR" "ABUDSR" "ABDDSR" "DSDR" "REDR"n
+	8l n
+
+#
+#	Intel 80321 I/O processor Peripheral Bus Interface registers
+#	Internal Addr: 0xffffe680
+#
+!80321_pbi
+	"PBIcontrol" "PBIstatus" n
+	l . l n
+	. "Base Address" "Limit" n
+	"Reg0" l . l n
+	"Reg1" l . l n
+	"Reg2" l . l n
+	"Reg3" l . l n
+	"Reg4" l . l n
+	"Reg5" l . l n
+	"DriveStrength" "Mem-less Boot0" "Mem-less Boot1" "Mem-less Boot2" n
+	l. 4+ l. 28+ l. l. n
+
+#
+#	Intel 80321 I/O processor Performance Monitoring registers
+#	Internal Addr: 0xffffe700
+#
+!80321_pm
+	"TimerMode" "EventSel " "EventStat" "TimeStamp" n
+	l. l. l. 4+ l n
+	"Ctr 1" "Ctr 2" "Ctr 3" "Ctr 4" "Ctr 5" "Ctr 6" "Ctr 7" n
+	7e n
+	"Ctr 9" "Ctr 9" "Ctr10" "Ctr11" "Ctr12" "Ctr13" "Ctr14" n
+	7e n
+
+#
+#	Intel 80321 I/O processor Internal Aribtration registers
+#	Internal Addr: 0xffffe780
+#
+!80321_ia
+	"ArbControl" "MultiX Timer1" "MultiX Timer2" n
+	l. l. l.
+
+#
+#	Intel 80321 I/O processor Interrupt Control, GPIO, and Timer registers
+#	Internal Addr: 0xffffe7c0
+#
+!80321_igt
+	"Device ID" "GPIOoe" . "GPIOinput" "GPIOoutput" n
+	l. l. l. l n
+	"IntControl" "IntSteer " "IRQ Source" "FIQ Source" n
+	l. l. l. l. n
+	"Timer0:" . "Mode" . "Count" . "Reload" n
+	.. l. 4+ e 4+ . e 16- n
+	"Timer1:" ."Mode" . "Count" . "Reload" n
+	.. l. 4+ e 4+ . e n
+	"TimerStatus" "WatchDogCtrl" n
+	l . l n
+
+#
+#	Intel 80321 I/O processor AAU registers
+#	Internal Addr: 0xffffe800
+#
+!80321_aau
+	"Control" "Status" "DescAddr " "NextDescAddr" n
+	l l l. l n
+	"Source Addresses 1-32" n
+	4(l.) 12+ n
+	4(l.) 4+ n
+	4(l.) n
+	4(l.) 4+ n
+	4(l.) n
+	4(l.) 4+ n
+	4(l.) n
+	4(l.) 136- n
+	"DestAddr " "ByteCnt" . "DescCtrl" n
+	l. e. l 16+ n
+	"ExtCtrl0" . "ExtCtrl1" . "ExtCtrl2" n
+	l. 32+ l. 32+ l n
+
+#
+#	Intel 80321 I/O processor SSP Serial Port registers
+#	Internal Addr: 0xfffff600
+#
+!80321_ssp
+	"SSP"	"Ctrl0" "Ctrl1" "Status" "IntTest" "Data" n
+	. l l l l l
+
+#
+#	Intel 80321 I/O processor I2C registers
+#	Internal Addr: 0xfffff680
+#
+!80321_i2c
+	"I2Cchan" "Control" "Status" "Address" "Buffer" "Monitor" n
+	"0" l l l l 4+ l 8+ n
+	"1" l l l l 4+ l 8+ n
+
+#
+#	Intel 80321 MU registers as seen from the host side of the PCI
+#	bus at BAR0.  Note that we skip the Inbound Queue Port, since
+#	each time we read it a message frame will be removed.
+#
+!80321_pcimu
+	4(4+) 
+	"InMsg0" . "InMsg1" . "OutMsg0" . "OutMsg1" n
+	l. l. l. l n
+	"InBound:" . "Doorbell" . "IntStat" "IntMask" n
+	.. l. l l n
+	"OutBound:" "Doorbell" . "IntStat" "IntMask" "QueuePort" n
+	.. l. l l  2(4+) 4+ l n

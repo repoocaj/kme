@@ -1,0 +1,202 @@
+#!/usr/bin/perl
+
+require 'assert.pl';
+
+#
+# @(#) $Id
+# NOTE:  This table must be reconsidered when using a different
+#        architecture. 
+#
+
+%sizeof = (
+    'char', 			'1',
+    'unsigned char', 		'1',
+    'short',			'2',
+    'short int',		'2',
+    'unsigned short',		'2',
+    'unsigned short int',	'2',
+    'short unsigned int',	'2',
+    'int',			'4',
+    'unsigned int',		'4',
+    'long',			'4',
+    'long int',			'4',
+    'unsigned long',		'4',
+    'unsigned long int',	'4',
+    'long unsigned int',	'4',
+    'long long',		'8',
+    'long long int',		'8',
+    'unsigned long long',	'8',
+    'unsigned long long int',	'8',
+    'float',			'4',
+    'double',			'8',
+    'pointer',			'4',
+);
+
+#
+# This table is where the default for each type is set.
+# a program will never get them all right.  (you and I know
+# int c = getc(), c should be displayed as a character, but
+# int c = 0x123, c should be as a decimal/hex number.  Still, we
+# allow this customizable table....
+#
+%kme_fmt = (
+    'char', 			'b',
+    'unsigned char', 		'b',
+    'short',			'x',
+    'short int',		'x',
+    'unsigned short',		'x',
+    'unsigned short int',	'x',
+    'short unsigned int',	'x',
+    'int',			'l',
+    'unsigned int',		'l',
+    'long',			'l',
+    'long int',			'l',
+    'unsigned long',		'l',
+    'unsigned long int',	'l',
+    'long unsigned int',	'l',
+    'long long',		'2l',
+    'long long int',		'2l',
+    'unsigned long long',	'2l',
+    'unsigned long long int',	'2l',
+    'float',			'???',
+    'double',			'???',
+    'pointer',			'l',
+);
+
+$size = 0 ;
+$offset = 0 ;
+$label = "" ;
+$fmt = "" ;
+$output_column = 0 ; 
+
+while   (<>)
+{
+    if (($strname) = /^struct ($\.+) {/)
+	{
+	print "\n!$strname    ";
+	&read_struct ;
+	}
+    print "\n" ;
+}
+
+sub read_struct
+{
+    while(<>)
+    {
+	if (/}/)
+	    { 
+	    &align_data;
+	    &retire_writes;
+	    last  ;
+	    } 
+	
+	($type, $member, $offset, $rsize) = unpack("A46A36A9A8", $_) ;
+	# Nuke leading whitespace from $type
+	$type =~ s/^(\s*)// ;
+
+	#
+	# We'll politely forget x86 (where x < 3) where pointers 
+	# can be different sizes...
+	# Pick out "struct foo *"
+	# and "(*int)()"  (function pointers)
+	#
+        if (($type =~ /\*/) || ($type =~ /\(\*/) )
+	    {
+	    $type = 'pointer' ;
+	    }
+	#
+	# ignore recursive struct definitions..pstruct will deal 
+	# with these when it gets 'round to it.
+	# Be sure this is done after 'pointer' test, so we 
+	# allow  struct foo *
+	#
+	if ($type =~ /struct /)
+	    {
+	    next ; 
+	    }
+	$size = $sizeof{$type} ;
+
+# print "Type: ->$type<- Member: $member, O: $offset , S: $size R: $rsize \n";
+	@member = split(/\./, $member);
+	# Emit the labels...
+	$label = $label . "\"$member[$#member]\" " ;
+
+	& emit_primitive ;
+    }
+}
+
+sub retire_writes
+{
+    $output_column = 0 ; 
+    $real_offset = 0 ;
+    print "\t", $label, "n\n\t",  $fmt, "n\n";
+    $label = "" ;
+    $fmt = "";
+}
+
+sub emit_primitive
+{
+    # Really dumb heurstics here...
+
+    # Figure out if repeats (i.e. char foo[10] ; )
+    &assert ('$size >= 0');
+    if ($size == 0)
+	{
+	$repeat = 1 ; 
+	}
+    else
+	{
+        $repeat = $rsize / $size ; 
+	}
+    &assert ('$repeat == int($repeat)');
+    $output_column += $repeat * $size;
+
+    if ($repeat == 1)
+	{
+	$repeat = ""
+	}
+
+    &align_data ; 
+
+    $fmt .= $repeat . $kme_fmt{$type} ;
+
+    if (($output_column > 16) || ($nitems++ > 7))
+	{
+#	$retire_writes ;
+	$nitems = 0 ; 
+	$output_column = 0 ; 
+	print "\t", $label, "n\n\t",  $fmt, "n\n";
+	$label = "" ;
+	$fmt = "";
+	}
+}
+
+sub emit_pad 
+{
+    $fmt .= "+" ;
+}
+
+
+sub align_data
+{
+    $num_pads = $offset - $real_offset ; 
+# print "\n Real offset: $real_offset, $offset, Emitting $num_pads ";
+    #
+    # While non-obvious, this makes the end of structure padding
+    # work right....
+    # struct foo { int x ; char a ; } , this code pads foo to 8..
+    #
+    if ($num_pads < 0 )
+	{
+	$num_pads = (4 - $real_offset) & 3 ;
+# print "Padding: $num_pads $offset $real_offset  \n"; 
+	}
+    while ($num_pads > 0 )
+	{
+	&emit_pad;
+	$num_pads--;
+	$real_offset ++ ;
+	}
+    $real_offset += $rsize ; 
+    return ; 
+}

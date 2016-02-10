@@ -1,0 +1,119 @@
+@(#) $Id: README,v 1.2 2001/07/30 14:06:37 robertl Exp $
+
+What is KME?
+
+    KME is the Kernel Memory Editor.  Like many useful programs,
+    it has outgrown it's name and now allows semi-realtime symbolic 
+    editing of process memory, kernel memory, in-circuit emulators, 
+    and has ioctl hooks to talk to many Digi Int'l devices.
+
+What does KME work on?
+
+    I have used or have heard of KME being used on SCO Xenix 
+    (even 286), SCO Unix, ISC Unix, Solaris, Sun OS, HP-UX,
+    Linux, AIX, UnixWare, Tru64, and just about every other 
+    UNIX mutant available.   It has been observed to run on 
+    processors including 286, IA32, IA64, Sparc, SparcV9, Alpha,
+    StrongARM, MIPS, and Power.
+
+    "Porting" shouldn't much be necessary these days becuase the
+    code is fully autoconfiscated.   KME will probably work on 
+    your system and if it doesn't, please submit patches to make 
+    it so.
+
+What is KME good for?
+
+    Kernel debuggers are OK, but very intrusive, and not very
+    extensible.  System V gives us crash, but it's not aware
+    of user defined structures and doesn't do realtime.
+
+    KME excels at allowing you to walk through memory in a
+    symbolic manner.  It knows about arrays, letting you 
+    traverse them with a single keystroke.  If you're trying
+    to watch a buffer in semi-realtime, KME is the tool.
+
+
+How do I use KME?
+
+    1.  Build it.  This should be as simple as:
+		./configure && make && make install
+
+    2.  Start it.  We'll start with a very simple example and
+	watch the timer tick.
+
+	Basically, you're in a spreadsheet looking thing that 
+	uses vi commands.  You specifiy addresses and formats 
+	in the format of:
+
+	    addr/format.
+
+	Most of your vi commands work like you'd want them to.   
+	Try this example (for most System Vs):
+
+	    kme -n /unix
+	    e (vi for edit)
+	    a (vi for append)
+	    lbolt/z<enter> (Display the kernel variable lbolt 
+			as a long decimal)
+
+	Oh.  You wanted it as hex? (yes, there are more editor 
+	efficient ways of doing this.  I'm taking you the 
+	scenic route...)
+
+	    e  (vi for edit)
+	    xx (vi for delete two chars)
+	    a  (for append)
+	    l<enter> (making the line look like lbolt/l)
+
+	Simple structures (such as lbolt, which is an integer) are 
+	interesting, but not very fun.  Add a line:
+
+	    cn_tty/!tty
+
+	Now, press + or - while on the struct to go to the next 
+	one.  The definition in kme_defs for the tty structure
+	is for an SCO 3.2v4 system.  It will be wrong for others,
+	but you see the idea.
+
+	There is a full "language" - modeled after C that lets 
+	you do all kinds of interesting (and some gross) things.
+
+	For example, if foobar is a pointer to a struct tty, 
+
+	*foobar/Z
+
+	will display it.  You can pick out specific members, etc.
+
+	Here's a command line (what it generates when you do 
+	a "s"ave) that contains a little example:
+
+	    exec ./kme -c /dev/kmem -n /unix -p 26 $* 3=lbolt\/z \
+		6=availrmem\/x 9=availsmem\ /x 12=putbuf\/256s 
+		18=cn\_tty\/Z 32=\*foobar\/Z
+
+	You can walk the proc structure, the user structures, 
+	change debugging variables in the driver you're trying
+	do debug, etc.  As is true with most powertools, you 
+	can hurt yourself very badly.  You were warned.
+
+Who is to thank/blame for KME?
+
+    Gene Olson originally came up with the idea and wrote the
+    majority of the code.  In the last couple years, Robert Lipe
+    and Rick Richardson have done the majority of the work.
+
+    It contains some sections borrowed from SC, the Spreadsheet 
+    Calculator.
+
+    Since Gene introduced KME into the Digi International 
+    engineering departments, many have contributed to it
+    in various ways.
+
+    Many engineers at Digiboard have contributed fixes and 
+    enhancements, many specific to our environment.
+
+    rick@dgii.com added the mmap() and the COFF code.
+
+    Robert Lipe added symbolic labels, nlist() and ptrace()
+    support, endianness overrides, most of the release
+    documentation, autoconf/configure, and index/offset toggles.

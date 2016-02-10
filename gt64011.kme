@@ -1,0 +1,66 @@
+#
+#	Galileo/Marvell 64011 MIPS system controller KME definitions
+#
+#	by Rick Richardson
+#
+
+# display the low 32 bits of a 64 bit value...
+L	l.4+
+
+#
+# GT64011 registers visible from the PCI side of the bus...
+#
+!gt64011
+	"cpu i/f" n
+		Ln
+	"RAS[1:0] Low" "RAS[1:0] High" "RAS[3:2] Low" "RAS[3:2] High" n
+		LLLLn
+	"CS[2:0] Low" "CS[2:0] High" "CS[3] Low" "CS[3] High" n
+		LLLLn
+	"PCI I/O Low" "PCI I/O high" "PCI Mem0 Low" "PCI Mem0 High" n
+		LLLLn
+	"Internal Space" "Bus Error Addr" "Reserved " n
+		LLLn
+	"PCI Mem1 Low" "PCI Mem1 High" n
+		LLn
+	880+
+	"RAS[0] Low" "RAS[0] High" "RAS[1] Low" "RAS[1] High" n
+		l.l.l.l.n
+	"RAS[2] Low" "RAS[2] High" "RAS[3] Low" "RAS[3] High" n
+		l.l.l.l.n
+	"CS[0] Low" "CS[0] High" "CS[1] Low" "CS[1] High" n
+		l.l.l.l.n
+	"CS[2] Low" "CS[2] High" "CS[3] Low" "CS[3] High" n
+		l.l.l.l.n
+	"Boot CS Low" "Boot CS High" "DRAM Config" n
+		l.l.l.n
+	"DRAM Bank 0" "DRAM Bank 1" "DRAM Bank 2" "DRAM Bank 3" n
+		l.l.l.l.n
+	"Device Bank 0" "Device Bank 1" "Device Bank 2" "Device Bank 3" n
+		l.l.l.l.n
+	"Boot Bank" "AddrDecodeError" n
+		l.l.n
+	908+ n
+	"DMA"	"Chan 0" . "Chan 1" . "Chan 2" . "Chan 3"  n
+	"Count" l. l. l. l n
+	"Source" l. l. l. l n
+	"Dest" l. l. l. l n
+	"Next" l. l. l. l n
+	"Control" l. l. l. l n
+	n
+	"Counter 0" "Counter 1" "Counter 2" "Counter 3" n
+		l.l.l.l.n
+	"DMA Arbiter" "Counter Control" n
+		l.l.n
+	920+n
+	"PCI Command" "Timeout Retry" "RAS[1:0] Size" "RAS[2:0] Size" n
+		l.l.l.l.n
+	"CS[2:0] Size" "CS[3] Size" "Intr Cause" "CPU Mask" n
+		l.l.l.l.n
+	"Reserved " "PCI Mask " "SErr Mask" "Reserved"n
+		l.l.l.l.n
+	"Reserved " "Intr Ack " "Reserved " "BaseAddrEnable"n
+		l.l.l.l.n
+	184+
+	"ConfigAddr" "ConfigData" n
+		l.l.n

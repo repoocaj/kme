@@ -1,0 +1,20 @@
+NEWS - list of user-visible changes between releases of kme
+
+New in 2.0.1 - 2002-05-10:
+* Allow autogenerating RPM packages.
+* Display data addresses more sensibly on narrow screens.
+* Ported to Cygwin and Linux/IA64 support.
+* Support for Linux /proc/ksyms, Solaris /dev/kmem and UnixWare getksym().
+* New display option <f> for floating point variables.
+* Improved network access code, made /etc/services unnecessary.
+* POSIX termios support.
+* New extension for displaying value/mask pairs.
+* Add support for 'long long' types.
+* Add support for 64-bit hosts.
+* Fixes for FreeBSD and HP-UX.
+* Misc. code cleanup.
+
+New in 2.0.0 - 2001-06-03:
+* This is the first release of kme on www.SourceForge.net.
+  Thanks to VALINUX and all the people who made it possible to
+  support this effort on SourceForge.

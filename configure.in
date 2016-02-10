@@ -1,0 +1,67 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(kme.c)
+AM_INIT_AUTOMAKE(kme, 2.0.1)
+
+dnl  AM_PROG_LIBTOOL
+AM_CONFIG_HEADER(config.h)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_MAKE_SET
+AC_PROG_INSTALL
+
+dnl Checks for libraries.
+AC_CHECK_LIB(elf, nlist)
+AC_CHECK_LIB(socket, socket)
+AC_CHECK_LIB(nsl, gethostbyname)
+AC_CHECK_LIB(dl, dlopen)
+AC_CHECK_LIB(ncurses, initscr)
+case "$LIBS" in
+*ncurses*);;
+*) AC_CHECK_LIB(curses, initscr);;
+esac
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(libelf/nlist.h nlist.h elf.h getopt.h string.h strings.h fcntl.h stropts.h sys/ksym.h sys/ptrace.h sys/time.h sys/wait.h stdlib.h termio.h termios.h unistd.h wait.h inttypes.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_TYPE_OFF_T
+AC_HEADER_TIME
+AC_MSG_CHECKING(for long long support in compiler)
+
+AC_CACHE_VAL(kme_cv_c_long_long,
+[AC_TRY_COMPILE(, [
+  extern long long foo;
+  switch (foo & 2) { case 0: return 1; }
+],
+kme_cv_c_long_long=yes, kme_cv_c_long_long=no)])
+AC_MSG_RESULT($kme_cv_c_long_long)
+if test $kme_cv_c_long_long = yes; then
+  AC_DEFINE(CC_HAS_LONG_LONG)
+fi
+
+dnl Checks for library functions.
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MMAP
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(getksym nlist ptrace select socket strtoul)
+
+dnl Test for miscellaneous files
+test -r /proc/ksyms && AC_DEFINE(HAVE_PROC_KSYMS, 1, /proc/ksyms exists)
+test -r /dev/ksyms  && AC_DEFINE(HAVE_DEV_KSYMS,  1, /dev/ksyms  exists)
+
+dnl Test for features we can't automatically configure
+if test "$ac_cv_lib_dl_dlopen" = "yes"; then
+    if test $ac_cv_prog_gcc = yes; then 
+	DYNAMIC="-rdynamic"
+    else
+	# Really should go into a per-OS case statement.  Here, we just
+	# default to the OSR5/SVR4/SVR5 standard.
+	DYNAMIC="-Bexport"
+    fi
+fi
+
+AC_SUBST(DYNAMIC)
+
+AC_OUTPUT(Makefile kme.spec)
