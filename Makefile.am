@@ -16,7 +16,7 @@ kmedir=		$(datadir)/kme
 kme_DATA=	i80321.kme gt64011.kme
 
 # kme_LDADD = @LIBS@
-LDFLAGS = $(DYNAMIC) 
+AM_LDFLAGS = $(DYNAMIC)
 
 # Turn off GCC-specific dependency tracking.
 AUTOMAKE_OPTIONS = no-dependencies
